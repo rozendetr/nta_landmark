@@ -1,5 +1,6 @@
 import os
 import random
+import re
 
 import torch
 from torchvision import transforms
@@ -12,7 +13,7 @@ import math
 from ..utils.transforms import fliplr_joints, crop, generate_target, transform_pixel
 from scipy.ndimage.morphology import grey_dilation
 
-class NTA(data.Dataset):
+class NTA_LIPS(data.Dataset):
 
     def __init__(self, cfg, is_train=True, transform=None):
         if is_train:
@@ -36,12 +37,25 @@ class NTA(data.Dataset):
 
         self.mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
         self.std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-        self.append_size = 1 / 3
-        self.NUM_PTS = 194
+        self.append_size = 1 / 4
+
         self.CROP_SIZE = 256
+        self.points_lips = list(range(58, 114))
+        self.NUM_PTS = len(self.points_lips)
 
+        def expand_bbox(x):
+            r = np.array(re.findall("([0-9]+[.]?[0-9]*)", x))
+            if len(r) == 0:
+                r = [-1, -1, -1, -1]
+            return r
+        df_lips = pd.DataFrame(np.stack(self.landmarks_frame['rect_lips'].apply(lambda x: expand_bbox(x))))
 
-        #  увеличение размера рамки лица (для дополнительной информации)
+        self.landmarks_frame['bottom_x'] = df_lips[2].astype('int32')
+        self.landmarks_frame['bottom_y'] = df_lips[3].astype('int32')
+        self.landmarks_frame['top_x'] = df_lips[0].astype('int32')
+        self.landmarks_frame['top_y'] = df_lips[1].astype('int32')
+
+        # #  увеличение размера рамки объетка (для дополнительной информации)
         self.landmarks_frame['width_bbox'] = abs(self.landmarks_frame['bottom_x'] - self.landmarks_frame['top_x'])
         self.landmarks_frame['height_bbox'] = abs(self.landmarks_frame['bottom_y'] - self.landmarks_frame['top_y'])
         self.landmarks_frame['top_x'] -= self.append_size * self.landmarks_frame['width_bbox']
@@ -53,12 +67,14 @@ class NTA(data.Dataset):
 
         if self.is_train:
             # координаты меток относительно вернего угла бокса прямоугольника
-            for id_point in range(self.NUM_PTS):
+            for id_point in self.points_lips:
                 self.landmarks_frame[f'Point_M{id_point}_X'] -= self.landmarks_frame['top_x']
                 self.landmarks_frame[f'Point_M{id_point}_Y'] -= self.landmarks_frame['top_y']
 
             self.df_landmarks = self.landmarks_frame.drop(
                 ['filename', 'top_x', 'top_y', 'bottom_x', 'bottom_y', 'width_bbox', 'height_bbox'], axis=1)
+
+
 
     def __len__(self):
         return len(self.landmarks_frame['filename'])
@@ -68,22 +84,29 @@ class NTA(data.Dataset):
         row_bbox = self.landmarks_frame.loc[idx]
         row_landmarks = np.zeros(self.NUM_PTS * 2)
         if self.is_train:
-            row_landmarks = np.array(self.df_landmarks.loc[idx].tolist())
+            row_landmarks = []
+            row_all_landmarks = self.df_landmarks.loc[idx]
+            for id_point in self.points_lips:
+                row_landmarks.append(row_all_landmarks[f'Point_M{id_point}_X'])
+                row_landmarks.append(row_all_landmarks[f'Point_M{id_point}_Y'])
+            row_landmarks = np.array(row_landmarks)
 
         img_file = os.path.join(self.data_root, row_bbox['filename'])
         img = Image.open(img_file)
-
-        # кроп лица
-        bbox = [row_bbox['top_x'], row_bbox['top_y'], row_bbox['bottom_x'], row_bbox['bottom_y']]
+        # кроп объекта
+        bbox = [int(row_bbox['top_x']), int(row_bbox['top_y']), int(row_bbox['bottom_x']), int(row_bbox['bottom_y'])]
+        # bbox = [int(row_bbox['bottom_x']), int(row_bbox['bottom_y']), int(row_bbox['top_x']), int(row_bbox['top_y'])]
         img = img.crop(bbox)
-
         # ресайз кропа до размеров CROP_SIZE с сохранением соотношения сторон
         w, h = img.size
-        if h > w:
+        if h < w:
             f = self.CROP_SIZE / w
         else:
             f = self.CROP_SIZE / h
         img = img.resize((int(w * f), int(h * f)))
+        # img.show()
+        # print(img.size)
+        # print(row_landmarks)
         row_landmarks = row_landmarks * f
 
         # CropCenter
@@ -118,18 +141,18 @@ class NTA(data.Dataset):
 
         if self.is_train:
             if random.random() <= 0.5 and self.flip:
+            # if random.random() <= 1.0 and self.flip:
                 img = np.fliplr(img)
-                # pts = fliplr_joints(pts, width=img.shape[1], dataset='300W')
                 pts[:, 0] = img.shape[1] - pts[:, 0]
-                # img = Image.fromarray(np.uint8(img))
-                # draw = ImageDraw.Draw(img)
-                # r = 3
-                # for coord in pts[:]:
-                #     x, y = coord
-                #     draw.ellipse((x - r, y - r, x + r, y + r), fill=(0, 255, 0, 0))
-                # img.show()
+                # pts = fliplr_joints(pts, width=img.shape[1], dataset='300W')
 
-
+        # img = Image.fromarray(np.uint8(img))
+        # draw = ImageDraw.Draw(img)
+        # r = 3
+        # for coord in pts[:]:
+        #     x, y = coord
+        #     draw.ellipse((x - r, y - r, x + r, y + r), fill=(0, 255, 0, 0))
+        # img.show()
 
         nparts = pts.shape[0]
         # print(nparts)

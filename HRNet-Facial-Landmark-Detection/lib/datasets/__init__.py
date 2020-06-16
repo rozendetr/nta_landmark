@@ -9,8 +9,9 @@ from .cofw import COFW
 from .face300w import Face300W
 from .wflw import WFLW
 from .NTA import NTA
+from .NTA_LIPS import NTA_LIPS
 
-__all__ = ['AFLW', 'COFW', 'Face300W', 'WFLW', 'NTA',  'get_dataset']
+__all__ = ['AFLW', 'COFW', 'Face300W', 'WFLW', 'NTA', 'NTA_LIPS' 'get_dataset']
 
 
 def get_dataset(config):
@@ -25,6 +26,8 @@ def get_dataset(config):
         return WFLW
     elif config.DATASET.DATASET == 'NTA':
         return NTA
+    elif config.DATASET.DATASET == 'NTA_LIPS':
+        return NTA_LIPS
     else:
         raise NotImplemented()
 

@@ -202,7 +202,7 @@ def main():
 
         logger.info('=> saving checkpoint to {}'.format(final_output_dir))
         print("best:", is_best)
-        torch.save(model.state_dict(), os.path.join(final_output_dir, 'mse_relu_checkpoint_{}.pth'.format(epoch)))
+        torch.save(model.state_dict(), os.path.join(final_output_dir, 'mse_relu_lips_checkpoint_{}.pth'.format(epoch)))
 
         # utils.save_checkpoint(
         #     {"state_dict": model,
