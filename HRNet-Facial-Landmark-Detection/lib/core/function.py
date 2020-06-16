@@ -66,8 +66,10 @@ def train(config, train_loader, model, critertion, optimizer,
         # print(target[0].shape)
         # Image.fromarray(np.uint8(target[0].numpy().sum(axis=0) * 255)).show()
         target = target.cuda(non_blocking=True)
+        M = meta["M"].cuda()
 
-        loss = critertion(output, target, reduction="mean")
+        # loss = critertion(output, target, M, reduction="mean")
+        loss = critertion(output, target)
         # print(loss)
         # NME
         score_map = output.data.cpu()

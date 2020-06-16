@@ -2,14 +2,15 @@ import os
 import random
 
 import torch
+from torchvision import transforms
 import torch.utils.data as data
 import pandas as pd
-from PIL import Image, ImageFile
+from PIL import Image, ImageFile, ImageDraw
 import numpy as np
 import math
 
 from ..utils.transforms import fliplr_joints, crop, generate_target, transform_pixel
-
+from scipy.ndimage.morphology import grey_dilation
 
 class NTA(data.Dataset):
 
@@ -35,7 +36,7 @@ class NTA(data.Dataset):
 
         self.mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
         self.std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-        self.append_size = 1 / 4
+        self.append_size = 1 / 3
         self.NUM_PTS = 194
         self.CROP_SIZE = 256
 
@@ -114,12 +115,30 @@ class NTA(data.Dataset):
 
         scale *= 1.25
 
+        if self.is_train:
+            if random.random() <= 0.5 and self.flip:
+                img = np.fliplr(img)
+                pts = fliplr_joints(pts, width=img.shape[1], dataset='300W')
+                # img = Image.fromarray(np.uint8(img))
+                # draw = ImageDraw.Draw(img)
+                # r = 3
+                # for coord in pts[:]:
+                #     x, y = coord
+                #     draw.ellipse((x - r, y - r, x + r, y + r), fill=(0, 255, 0, 0))
+                # img.show()
+
+
+
         nparts = pts.shape[0]
         # print(nparts)
         target = np.zeros((nparts, self.output_size[0], self.output_size[1]))
+        M = np.zeros((nparts, self.output_size[0], self.output_size[1]))
         tpts = pts.copy()
-        tpts = tpts/4   # 256/4
+        tpts = tpts/4   # 256/4 =64
+        # tpts = tpts/2   # 256/4 =64
         # print(tpts)
+
+
         for i in range(nparts):
             if tpts[i, 1] > 0:
                 target[i], is_generate = generate_target(target[i], tpts[i] - 1, self.sigma,
@@ -133,8 +152,11 @@ class NTA(data.Dataset):
         # tr = target.sum(axis=0)
         # tr = np.concatenate(target[:5], axis=1)
         # Image.fromarray(np.uint8(tr*255)).show()
-        # im = Image.fromarray(np.uint8(target[0]))
-        # im.show()
+        # Image.fromarray(np.uint8(target[0])).show()
+        # RandomErasing = transforms.RandomErasing()
+        # img = RandomErasing(img)
+        # Image.fromarray(np.uint8(img)).show()
+
 
         img = img.astype(np.float32)
         img = (img / 255.0 - self.mean) / self.std
@@ -142,6 +164,13 @@ class NTA(data.Dataset):
         target = torch.Tensor(target)
         tpts = torch.Tensor(tpts)
         # center = torch.Tensor(center)
+
+
+        # M = np.zeros((self.NUM_PTS, self.output_size, self.output_size), dtype=np.float32)
+        for i in range(len(M)):
+            M[i] = grey_dilation(target[i], size=(3, 3))
+        M = np.where(M >= 0.5, 1, 0)
+
 
         meta = {'index': idx,
                 'center': center,
@@ -153,7 +182,8 @@ class NTA(data.Dataset):
                 "crop_margin_y": margin_h,
                 "scale_coef": f,
                 "top_x": row_bbox['top_x'],
-                "top_y": row_bbox['top_y']
+                "top_y": row_bbox['top_y'],
+                "M" : M
                 }
 
         return img, target, meta

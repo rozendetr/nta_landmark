@@ -15,6 +15,7 @@ import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from .mish import BetaMish
 
 
 BatchNorm2d = nn.BatchNorm2d
@@ -36,6 +37,7 @@ class BasicBlock(nn.Module):
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = BatchNorm2d(planes, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
+        self.mish = BetaMish(beta=1.5)
         self.conv2 = conv3x3(planes, planes)
         self.bn2 = BatchNorm2d(planes, momentum=BN_MOMENTUM)
         self.downsample = downsample
@@ -47,6 +49,7 @@ class BasicBlock(nn.Module):
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
+        # out = self.mish(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
@@ -55,8 +58,8 @@ class BasicBlock(nn.Module):
             residual = self.downsample(x)
 
         out += residual
-        out = self.relu(out)
-
+        #out = self.relu(out)
+        out = self.mish(out)
         return out
 
 
@@ -75,6 +78,7 @@ class Bottleneck(nn.Module):
         self.bn3 = BatchNorm2d(planes * self.expansion,
                                momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
+        self.mish = BetaMish(beta=1.5)
         self.downsample = downsample
         self.stride = stride
 
@@ -84,10 +88,12 @@ class Bottleneck(nn.Module):
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
+        # out = self.mish(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
         out = self.relu(out)
+        # out = self.mish(out)
 
         out = self.conv3(out)
         out = self.bn3(out)
@@ -97,6 +103,7 @@ class Bottleneck(nn.Module):
 
         out += residual
         out = self.relu(out)
+        # out = self.mish(out)
 
         return out
 
@@ -118,6 +125,7 @@ class HighResolutionModule(nn.Module):
             num_branches, blocks, num_blocks, num_channels)
         self.fuse_layers = self._make_fuse_layers()
         self.relu = nn.ReLU(inplace=True)
+        self.mish = BetaMish(beta=1.5)
 
     def _check_branches(self, num_branches, blocks, num_blocks,
                         num_inchannels, num_channels):
@@ -213,6 +221,7 @@ class HighResolutionModule(nn.Module):
                                 BatchNorm2d(num_outchannels_conv3x3,
                                             momentum=BN_MOMENTUM),
                                 nn.ReLU(inplace=True)))
+                                # BetaMish(beta=1.5)))
                     fuse_layer.append(nn.Sequential(*conv3x3s))
             fuse_layers.append(nn.ModuleList(fuse_layer))
 
@@ -242,6 +251,7 @@ class HighResolutionModule(nn.Module):
                 else:
                     y = y + self.fuse_layers[i][j](x[j])
             x_fuse.append(self.relu(y))
+            # x_fuse.append(self.mish(y))
 
         return x_fuse
 
@@ -267,6 +277,7 @@ class HighResolutionNet(nn.Module):
                                bias=False)
         self.bn2 = BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
+        self.mish = BetaMish(beta=1.5)
         self.sf = nn.Softmax(dim=1)
         self.layer1 = self._make_layer(Bottleneck, 64, 64, 4)
 
@@ -311,8 +322,20 @@ class HighResolutionNet(nn.Module):
                 padding=1 if extra.FINAL_CONV_KERNEL == 3 else 0),
             BatchNorm2d(final_inp_channels, momentum=BN_MOMENTUM),
             nn.ReLU(inplace=True),
+            # BetaMish(beta=1.5),
+
             nn.Conv2d(
                 in_channels=final_inp_channels,
+                out_channels=2*final_inp_channels,
+                kernel_size=1,
+                stride=1,
+                padding=1 if extra.FINAL_CONV_KERNEL == 3 else 0),
+            BatchNorm2d(2*final_inp_channels, momentum=BN_MOMENTUM),
+            nn.ReLU(inplace=True),
+            # BetaMish(beta=1.5),
+
+            nn.Conv2d(
+                in_channels=2*final_inp_channels,
                 out_channels=config.MODEL.NUM_JOINTS,
                 kernel_size=extra.FINAL_CONV_KERNEL,
                 stride=1,
@@ -338,6 +361,7 @@ class HighResolutionNet(nn.Module):
                         BatchNorm2d(
                             num_channels_cur_layer[i], momentum=BN_MOMENTUM),
                         nn.ReLU(inplace=True)))
+                        # BetaMish(beta=1.5)))
                 else:
                     transition_layers.append(None)
             else:
@@ -351,6 +375,7 @@ class HighResolutionNet(nn.Module):
                             inchannels, outchannels, 3, 2, 1, bias=False),
                         BatchNorm2d(outchannels, momentum=BN_MOMENTUM),
                         nn.ReLU(inplace=True)))
+                        # BetaMish(beta=1.5)))
                 transition_layers.append(nn.Sequential(*conv3x3s))
 
         return nn.ModuleList(transition_layers)
@@ -406,9 +431,11 @@ class HighResolutionNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
+        # x = self.mish(x)
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.relu(x)
+        # x = self.mish(x)
         x = self.layer1(x)
 
         x_list = []
