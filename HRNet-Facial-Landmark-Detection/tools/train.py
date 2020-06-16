@@ -132,15 +132,15 @@ def main():
 
 
 
-    val_loader = DataLoader(
-        dataset=dataset_type(config,
-                             is_train=True),
-        # batch_size=config.TEST.BATCH_SIZE_PER_GPU*len(gpus),
-        batch_size=config.TEST.BATCH_SIZE_PER_GPU,
-        shuffle=False,
-        num_workers=config.WORKERS,
-        # pin_memory=config.PIN_MEMORY
-    )
+    # val_loader = DataLoader(
+    #     dataset=dataset_type(config,
+    #                          is_train=True),
+    #     # batch_size=config.TEST.BATCH_SIZE_PER_GPU*len(gpus),
+    #     batch_size=config.TEST.BATCH_SIZE_PER_GPU,
+    #     shuffle=False,
+    #     num_workers=config.WORKERS,
+    #     # pin_memory=config.PIN_MEMORY
+    # )
 
     model = models.get_face_alignment_net(config)
 
@@ -171,7 +171,7 @@ def main():
             with open(model_state_file, "rb") as fp:
                 state_dict = torch.load(fp)
                 model.load_state_dict(state_dict)
-                last_epoch = 90
+                last_epoch = 1
             # checkpoint = torch.load(model_state_file)
             # last_epoch = checkpoint['epoch']
             # best_nme = checkpoint['best_nme']

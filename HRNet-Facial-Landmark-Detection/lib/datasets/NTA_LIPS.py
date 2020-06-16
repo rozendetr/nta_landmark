@@ -10,7 +10,7 @@ from PIL import Image, ImageFile, ImageDraw
 import numpy as np
 import math
 
-from ..utils.transforms import fliplr_joints, crop, generate_target, transform_pixel
+from ..utils.transforms import fliplr_joints, crop, generate_target, transform_pixel, random_erasing
 from scipy.ndimage.morphology import grey_dilation
 
 class NTA_LIPS(data.Dataset):
@@ -117,6 +117,10 @@ class NTA_LIPS(data.Dataset):
         row_landmarks = row_landmarks.astype(np.int16).reshape(-1, 2)
         row_landmarks -= np.array((margin_w, margin_h), dtype=np.int16)[None, :]
         pts = row_landmarks.astype(np.int16).reshape(-1, 2)
+
+        # Random cutoff
+        if self.is_train:
+            img = random_erasing(img)
 
 
         img = np.array(img.convert('RGB'), dtype=np.float32)

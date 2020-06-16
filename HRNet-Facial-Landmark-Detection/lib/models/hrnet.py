@@ -324,18 +324,18 @@ class HighResolutionNet(nn.Module):
             nn.ReLU(inplace=True),
             # BetaMish(beta=1.5),
 
-            nn.Conv2d(
-                in_channels=final_inp_channels,
-                out_channels=2*final_inp_channels,
-                kernel_size=1,
-                stride=1,
-                padding=1 if extra.FINAL_CONV_KERNEL == 3 else 0),
-            BatchNorm2d(2*final_inp_channels, momentum=BN_MOMENTUM),
-            nn.ReLU(inplace=True),
-            # BetaMish(beta=1.5),
+            # nn.Conv2d(
+            #     in_channels=final_inp_channels,
+            #     out_channels=2*final_inp_channels,
+            #     kernel_size=1,
+            #     stride=1,
+            #     padding=1 if extra.FINAL_CONV_KERNEL == 3 else 0),
+            # BatchNorm2d(2*final_inp_channels, momentum=BN_MOMENTUM),
+            # nn.ReLU(inplace=True),
+            # # BetaMish(beta=1.5),
 
             nn.Conv2d(
-                in_channels=2*final_inp_channels,
+                in_channels=final_inp_channels,
                 out_channels=config.MODEL.NUM_JOINTS,
                 kernel_size=extra.FINAL_CONV_KERNEL,
                 stride=1,

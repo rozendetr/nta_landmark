@@ -9,6 +9,9 @@ import torch
 import scipy
 import scipy.misc
 import numpy as np
+import random
+import math
+from PIL import Image
 
 
 MATCHED_PARTS = {
@@ -249,5 +252,38 @@ def generate_target(img, pt, sigma, label_type='Gaussian'):
     return img, True
 
 
+def random_erasing(img, p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value=(125, 125, 125), inplace=False):
+    """
+    random erasing for pil image
+    p – probability that the random erasing operation will be performed.
+    scale – range of proportion of erased area against input image.
+    ratio – range of aspect ratio of erased area.
+    value – erasing value. Default is 0. If a single int, it is used to erase all pixels. If a tuple of length 3, it is used to erase R, G, B channels respectively. If a str of ‘random’, erasing each pixel with random values.
+
+    """
+    def get_params():
+        img_w, img_h = img.size
+        area = img_h * img_w
+        for _ in range(10):
+            erase_area = random.uniform(scale[0], scale[1]) * area
+            aspect_ratio = random.uniform(ratio[0], ratio[1])
+            h = int(round(math.sqrt(erase_area * aspect_ratio)))
+            w = int(round(math.sqrt(erase_area / aspect_ratio)))
+            if h < img_h and w < img_w:
+                i = random.randint(0, img_h - h)
+                j = random.randint(0, img_w - w)
+                return i, j, h, w,
+        return 0, 0, img_h, img_w
+
+    if random.uniform(0, 1) < p:
+        x, y, h, w = get_params()
+        # print(x, y, h, w)
+        erase_img = Image.new('RGB', (w, h), value)
+        if not inplace:
+            copy_img = img.copy()
+            copy_img.paste(erase_img, (y, x))
+            return copy_img
+        img.paste(erase_img, (y, x))
+    return img
 
 
