@@ -68,7 +68,12 @@ class NTA(data.Dataset):
         row_bbox = self.landmarks_frame.loc[idx]
         row_landmarks = np.zeros(self.NUM_PTS * 2)
         if self.is_train:
-            row_landmarks = np.array(self.df_landmarks.loc[idx].tolist())
+            row_landmarks = []
+            row_all_landmarks = self.df_landmarks.loc[idx]
+            for id_point in range(0, 194):
+                row_landmarks.append(row_all_landmarks[f'Point_M{id_point}_X'])
+                row_landmarks.append(row_all_landmarks[f'Point_M{id_point}_Y'])
+            row_landmarks = np.array(row_landmarks)
 
         img_file = os.path.join(self.data_root, row_bbox['filename'])
         img = Image.open(img_file)
@@ -119,11 +124,11 @@ class NTA(data.Dataset):
 
         scale *= 1.25
 
-        if self.is_train:
-            if random.random() <= 0.5 and self.flip:
-                img = np.fliplr(img)
+        # if self.is_train:
+            # if random.random() <= 0.5 and self.flip:
+                # img = np.fliplr(img)
                 # pts = fliplr_joints(pts, width=img.shape[1], dataset='300W')
-                pts[:, 0] = img.shape[1] - pts[:, 0]
+                # pts[:, 0] = img.shape[1] - pts[:, 0]
                 # img = Image.fromarray(np.uint8(img))
                 # draw = ImageDraw.Draw(img)
                 # r = 3

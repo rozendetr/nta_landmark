@@ -5,7 +5,7 @@ PIN_MEMORY: true
 
 DATASET:
   DATASET: NTA
-  ROOT: '../data/test/images'
+  ROOT: '../data/train/images'
   TRAINSET: '../data/train/landmarks_train.csv'
   TESTSET: '../data/test/landmarks_test.csv'
   FLIP: true
@@ -66,14 +66,14 @@ MODEL:
       FUSE_METHOD: SUM
 TRAIN:
   BATCH_SIZE_PER_GPU: 10
-  SHUFFLE: false
+  SHUFFLE: true
   BEGIN_EPOCH: 0
   END_EPOCH: 300
   RESUME: true
   OPTIMIZER: 'adam'
   LR: 0.001
   WD: 0.0
-  LR_STEP: [30,  50, 80]
+  LR_STEP: [20, 30,  50]
   LR_FACTOR: 0.1
   MOMENTUM: 0.0
   NESTEROV: false
